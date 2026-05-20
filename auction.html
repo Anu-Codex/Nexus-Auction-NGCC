@@ -365,54 +365,73 @@
     }
 
     function renderAuction(state) {
-        const container = document.getElementById('auctionDisplay');
-        const content = document.getElementById('auctionContent');
+    const container = document.getElementById('auctionDisplay');
+    if (!container || !state || !state.activePlayerId) {
+        container.innerHTML = `<div class="text-center py-10 opacity-40"><i class="fa-solid fa-gavel text-7xl mb-6"></i><p class="font-black uppercase tracking-[0.4em] text-sm">Waiting for Entry</p></div>`;
+        return;
+    }
+
+    const p = state.activePlayerId;
+    const isHighest = user && (user.name === state.highestBidder);
+    const hasSkipped = user && state.skippedTeams.includes(user.name);
+
+    container.innerHTML = `
+        <div class="w-full flex flex-col items-center animate-in zoom-in duration-500">
+            
+            <div class="w-full max-w-2xl bg-white/5 h-1.5 rounded-full mb-8 overflow-hidden border border-white/5">
+                <div class="h-full bg-cyan-400 shadow-[0_0_10px_#00e5ff]" style="width: ${(state.timeLeft/60)*100}%"></div>
+            </div>
+
+            <div class="flex flex-col lg:flex-row items-center gap-12 w-full justify-center">
+                
+                <div class="player-card-premium w-64 h-96 rounded-[2rem] p-6 shadow-2xl flex flex-col items-center justify-center animate-float overflow-hidden">
+                    <span class="text-4xl font-black text-cyan-400 mb-1">${p.strength}</span>
+                    <h2 class="text-3xl font-black text-center text-white leading-none uppercase italic mb-2">${p.name}</h2>
+                    <p class="text-cyan-400 text-xs font-bold">DIV ${p.division || 'N/A'}</p>
+                    <div class="mt-auto bg-cyan-400 text-black px-4 py-1.5 rounded-full font-black text-[10px] uppercase">${p.cardType}</div>
+                </div>
+
+            
+                <div class="flex flex-col items-center lg:items-start text-center lg:text-left gap-4">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em]">Current Evaluation</p>
+                    <p class="text-7xl font-black text-white neon-text-glow">${state.currentBid}<span class="text-2xl text-cyan-400 ml-2">L</span></p>
+                    <p class="text-2xl font-bold text-yellow-400 uppercase">${state.highestBidder}</p>
+                    <span class="bg-red-500/10 text-red-500 text-[10px] font-black px-3 py-1 rounded-full uppercase">Ends in ${state.timeLeft}s</span>
+                </div>
+            </div>
+
+            ${user && user.role === 'captain' ? `
+                <div class="mt-10 flex flex-col items-center gap-4">
+                    <div class="grid grid-cols-3 gap-4 w-full max-w-lg">
+                        <button onclick="bid(1)" class="bg-gray-800 p-4 rounded-xl font-black border border-white/10 ${isHighest || hasSkipped ? 'opacity-20 grayscale cursor-not-allowed' : 'btn-premium'}" ${isHighest || hasSkipped ? 'disabled' : ''}>+1 L</button>
+                        <button onclick="bid(5)" class="bg-cyan-400 text-black p-4 rounded-xl font-black ${isHighest || hasSkipped ? 'opacity-20 grayscale cursor-not-allowed' : 'btn-premium'}" ${isHighest || hasSkipped ? 'disabled' : ''}>+5 L</button>
+                        <button onclick="bid(10)" class="bg-cyan-400 text-black p-4 rounded-xl font-black ${isHighest || hasSkipped ? 'opacity-20 grayscale cursor-not-allowed' : 'btn-premium'}" ${isHighest || hasSkipped ? 'disabled' : ''}>+10 L</button>
+                    </div>
+                    
+                    <button onclick="skip()" class="w-full max-w-lg bg-red-500/10 text-red-500 border border-red-500/20 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-red-500 hover:text-white transition-all ${hasSkipped ? 'hidden' : ''}">
+                        Skip Round
+                    </button>
+
+                    ${hasSkipped ? '<p class="text-red-500 text-xs font-black uppercase tracking-widest animate-pulse">You have skipped this player</p>' : ''}
+                    ${isHighest ? '<p class="text-cyan-400 text-xs font-black uppercase tracking-widest animate-pulse">Wait for another bid...</p>' : ''}
+                </div>
+            ` : ''}
+        </div>`;
+    }
         
-        if (!state || !state.activePlayerId) {
-            if(content) content.innerHTML = `<p class="text-gray-600 animate-pulse italic">Waiting for Next Legend...</p>`;
-            if(container) container.innerHTML = `<div class="text-center py-10 opacity-40"><i class="fa-solid fa-gavel text-7xl mb-6"></i><p class="font-black uppercase tracking-[0.4em] text-sm">Waiting for Entry</p></div>`;
-            return;
-        }
+    
 
-        const p = state.activePlayerId;
-        const isHighest = user && (user.name === state.highestBidder);
+    function bid(inc) {
+    if(!user || user.role !== 'captain') return;
+    socket.emit('placeBid', { teamName: user.name, increment: inc });
+}
 
-        // Update the main Auction Display (Premium Card View)
-        if(container) {
-            container.innerHTML = `
-                <div class="w-full flex flex-col items-center animate-in zoom-in duration-500">
-                    <div class="w-full max-w-2xl bg-white/5 h-1.5 rounded-full mb-12 overflow-hidden border border-white/5">
-                        <div id="timerBar" class="h-full bg-cyan-400 shadow-[0_0_10px_#00e5ff]" style="width: ${(state.timeLeft/60)*100}%"></div>
-                    </div>
-                    <div class="flex flex-col lg:flex-row items-center gap-12 w-full justify-center">
-                        <div class="player-card-premium w-64 h-96 rounded-[2rem] p-6 shadow-2xl flex flex-col items-center justify-center animate-float overflow-hidden">
-                            <span class="text-4xl font-black text-cyan-400 mb-1">${p.strength}</span>
-                            <h2 class="text-3xl font-black text-center text-white leading-none uppercase italic mb-8">${p.name}</h2>
-                            <p class="text-cyan-400 text-xs font-bold mb-4">DIV ${p.division || 'N/A'} | RANKED</p>
-                            <div class="mt-auto bg-cyan-400 text-black px-4 py-1.5 rounded-full font-black text-[10px] uppercase">${p.cardType}</div>
-                        </div>
-                        <div class="flex flex-col items-center lg:items-start text-center lg:text-left gap-6">
-                            <p class="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em]">Current Bid</p>
-                            <p class="text-7xl font-black text-white neon-text-glow">${state.currentBid}<span class="text-2xl text-cyan-400 ml-2">L</span></p>
-                            <p class="text-2xl font-bold text-yellow-400">${state.highestBidder || 'OPENING'}</p>
-                            <span id="timerVal" class="bg-red-500/10 text-red-500 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Ends in ${state.timeLeft}s</span>
-                        </div>
-                    </div>
-                    ${user && user.role === 'captain' ? `
-                        <div class="grid grid-cols-3 gap-6 w-full max-w-xl mt-12">
-                            <button onclick="bid(1)" class="bg-gray-800 text-white p-5 rounded-3xl font-black btn-premium ${isHighest ? 'opacity-30' : ''}" ${isHighest ? 'disabled' : ''}>+1 L</button>
-                            <button onclick="bid(5)" class="bg-cyan-400 text-black p-5 rounded-3xl font-black btn-premium ${isHighest ? 'opacity-30' : ''}" ${isHighest ? 'disabled' : ''}>+5 L</button>
-                            <button onclick="bid(10)" class="bg-cyan-400 text-black p-5 rounded-3xl font-black btn-premium ${isHighest ? 'opacity-30' : ''}" ${isHighest ? 'disabled' : ''}>+10 L</button>
-                        </div>
-                    ` : ''}
-                </div>`;
-        }
+function skip() {
+    if(!user || user.role !== 'captain') return;
+    if(confirm("Are you sure you want to skip this player? You cannot bid again until the next player.")) {
+        socket.emit('skipRound', { teamName: user.name });
     }
-
-    function bid(inc) { 
-        if(!user || user.role !== 'captain') return;
-        socket.emit('placeBid', { teamName: user.name, increment: inc }); 
-    }
+}
     
     function sendBonus() { 
         if(user.role !== 'admin') return;
