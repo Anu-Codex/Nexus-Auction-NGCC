@@ -195,139 +195,190 @@
         </main>
     </div>
 
-    <script>
-        // CHANGE THIS TO YOUR RENDER URL
-        const socket = io("https://nl-auc-go.onrender.com/"); 
+        <script>
+    // 1. CHANGE THIS TO YOUR ACTUAL RENDER URL
+    const socket = io("https://your-backend-name.onrender.com"); 
+    
+    let currentPlayers = [];
+    let currentTeams = [];
+    let user = JSON.parse(localStorage.getItem('nexus_user')) || null;
+    let tempEmail = "";
+    let authType = "";
+
+    // --- FIXED AUTH UI LOGIC ---
+    function showAuthStep(step) {
+        // Hide all auth screens first
+        document.getElementById('auth_choice').classList.add('hidden');
+        document.getElementById('auth_register').classList.add('hidden');
+        document.getElementById('auth_special').classList.add('hidden');
+        document.getElementById('auth_otp').classList.add('hidden');
         
-        let currentPlayers = [];
-        let currentTeams = [];
-        let user = JSON.parse(localStorage.getItem('nexus_user')) || null;
-        let tempEmail = "";
-        let authType = "";
+        // Show the requested screen
+        if(step === 'choice') document.getElementById('auth_choice').classList.remove('hidden');
+        if(step === 'register') document.getElementById('auth_register').classList.remove('hidden');
+        if(step === 'otp') document.getElementById('auth_otp').classList.remove('hidden');
+        
+        if(step === 'captain' || step === 'admin') {
+            authType = step;
+            document.getElementById('special_title').innerText = step.toUpperCase() + " ACCESS";
+            document.getElementById('auth_special').classList.remove('hidden');
+        }
+    }
 
-        // --- AUTH UI LOGIC ---
-        function showAuthStep(step) {
-            document.getElementById('auth_choice').classList.add('hidden');
-            document.getElementById('auth_register').classList.add('hidden');
-            document.getElementById('auth_special').classList.add('hidden');
-            document.getElementById('auth_otp').classList.add('hidden');
-            
-            if(step === 'choice') document.getElementById('auth_choice').classList.remove('hidden');
-            if(step === 'register') document.getElementById('auth_register').classList.remove('hidden');
-            if(step === 'otp') document.getElementById('auth_otp').classList.remove('hidden');
-            if(step === 'captain' || step === 'admin') {
-                authType = step;
-                document.getElementById('special_title').innerText = step.toUpperCase() + " ACCESS";
-                document.getElementById('auth_special').classList.remove('hidden');
-            }
+    // --- AUTH ACTIONS ---
+    function handleRegister() {
+        tempEmail = document.getElementById('reg_email').value.trim();
+        const name = document.getElementById('reg_name').value.trim();
+        const pass = document.getElementById('reg_pass').value;
+        
+        if(!tempEmail || !name || !pass) return showError("Please fill all registration fields");
+        
+        console.log("Registering visitor:", tempEmail);
+        socket.emit('register', { name, email: tempEmail, password: pass });
+    }
+
+    function handleSpecialLogin() {
+        tempEmail = document.getElementById('spec_email').value.trim();
+        const pass = document.getElementById('spec_pass').value;
+        
+        if(!tempEmail || !pass) return showError("Please enter email and password");
+        
+        console.log("Logging in as:", authType);
+        socket.emit('specialSignIn', { email: tempEmail, password: pass, type: authType });
+    }
+
+    function handleVerifyOTP() {
+        const otp = document.getElementById('otp_input').value.trim();
+        if(!otp) return showError("Please enter the 6-digit OTP");
+        
+        socket.emit('verifyOTP', { email: tempEmail, otp: otp });
+    }
+
+    function showError(msg) {
+        const err = document.getElementById('authError');
+        err.innerText = msg;
+        err.classList.remove('hidden');
+        setTimeout(() => err.classList.add('hidden'), 4000);
+    }
+
+    // --- AUTH SOCKET LISTENERS ---
+    // This matches the 'otp_verify' string sent from your server.js
+    socket.on('authStep', step => { 
+        if(step === 'otp_verify') {
+            console.log("OTP requested by server, showing OTP box...");
+            showAuthStep('otp'); 
+        }
+    });
+
+    socket.on('errorMsg', msg => showError(msg));
+
+    socket.on('loginSuccess', data => {
+        user = data;
+        localStorage.setItem('nexus_user', JSON.stringify(data));
+        console.log("Login successful!", data);
+        startApp();
+    });
+
+    // --- APP START & AUCTION FUNCTIONS ---
+    function logout() { 
+        localStorage.removeItem('nexus_user'); 
+        location.reload(); 
+    }
+
+    function startApp() {
+        if(!user) return;
+        document.getElementById('authOverlay').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        document.getElementById('userName').innerText = user.name;
+        document.getElementById('userRole').innerText = user.role;
+        
+        // Admin specific UI
+        if (user.role === 'admin') {
+            document.getElementById('adminControls').classList.remove('hidden');
+            document.getElementById('adminPlayerForm').classList.remove('hidden');
+            document.getElementById('adminBonusPanel').classList.remove('hidden');
+            document.getElementById('adminPanel').classList.remove('hidden');
+        }
+    }
+
+    socket.on('initialData', (data) => {
+        currentPlayers = data.players;
+        currentTeams = data.teams;
+        renderPlayers(data.players);
+        renderTeams(data.teams);
+        renderAuction(data.state);
+        if(data.chats) { 
+            document.getElementById('chatBox').innerHTML = ''; 
+            data.chats.forEach(addChatMessage); 
+        }
+    });
+
+    socket.on('updatePlayers', (p) => { currentPlayers = p; renderPlayers(p); });
+    socket.on('updateTeams', (t) => { currentTeams = t; renderTeams(t); });
+    socket.on('updateAuction', renderAuction);
+    socket.on('newMessage', addChatMessage);
+
+    socket.on('timerUpdate', t => {
+        const bar = document.getElementById('timerBar');
+        if(bar) bar.style.width = (t / 60 * 100) + "%";
+        
+        const val = document.getElementById('timerVal');
+        if(val) {
+            val.innerText = t + "s";
+            if(t <= 10) val.classList.add('text-red-500');
+            else val.classList.remove('text-red-500');
+        }
+    });
+
+    function renderPlayers(players) {
+        document.getElementById('playerList').innerHTML = players.map(p => `
+            <tr class="hover:bg-white/5 border-b border-white/5 group transition-colors">
+                <td class="p-6 font-bold text-white group-hover:text-cyan-400 transition">${p.name}</td>
+                <td class="p-6 text-gray-400 font-bold">${p.strength}</td>
+                <td class="p-6"><span class="px-3 py-1 rounded-lg text-[10px] font-black border border-white/10 bg-gray-800 tracking-widest uppercase">${p.cardType}</span></td>
+                <td class="p-6 font-black uppercase text-[10px] tracking-widest ${p.status === 'Available' ? 'text-cyan-400' : 'text-red-500'}">${p.status}</td>
+                <td class="p-6 text-white font-black">${p.baseValue} L</td>
+                <td class="p-6"><div class="flex items-center justify-center gap-4">
+                    ${user && user.role === 'admin' && p.status === 'Available' ? `<button onclick="socket.emit('startAuction', { playerId: '${p._id}', baseValue: ${p.baseValue} })" class="bg-cyan-400 text-black text-[10px] px-4 py-1.5 rounded-lg font-black uppercase hover:scale-105 transition">START</button>` : `<span class="text-gray-600 text-[10px] font-bold uppercase italic">${p.soldTo || '-'}</span>`}
+                    ${user && user.role === 'admin' ? `<button onclick="confirmDelete('${p._id}', '${p.name}')" class="text-gray-600 hover:text-red-500 transition"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                </div></td>
+            </tr>
+        `).join('');
+    }
+
+    function renderTeams(teams) {
+        const list = document.getElementById('budgetList');
+        if(!list) return;
+        list.innerHTML = teams.sort((a,b)=>b.budget-a.budget).map(t => `
+            <div class="flex justify-between items-center p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-cyan-400/30 transition-all group">
+                <span class="text-sm font-black uppercase tracking-widest text-gray-400 group-hover:text-white">${t.name}</span>
+                <span class="text-cyan-400 font-black text-lg">${t.budget} L</span>
+            </div>
+        `).join('');
+        
+        const select = document.getElementById('bonusTeamSelect');
+        if (select) select.innerHTML = teams.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+    }
+
+    function renderAuction(state) {
+        const container = document.getElementById('auctionDisplay');
+        const content = document.getElementById('auctionContent');
+        
+        if (!state || !state.activePlayerId) {
+            if(content) content.innerHTML = `<p class="text-gray-600 animate-pulse italic">Waiting for Next Legend...</p>`;
+            if(container) container.innerHTML = `<div class="text-center py-10 opacity-40"><i class="fa-solid fa-gavel text-7xl mb-6"></i><p class="font-black uppercase tracking-[0.4em] text-sm">Waiting for Entry</p></div>`;
+            return;
         }
 
-        function handleRegister() {
-            tempEmail = document.getElementById('reg_email').value;
-            const name = document.getElementById('reg_name').value;
-            const pass = document.getElementById('reg_pass').value;
-            if(!tempEmail || !name || !pass) return showError("Fill all fields");
-            socket.emit('register', { name, email: tempEmail, password: pass });
-        }
+        const p = state.activePlayerId;
+        const isHighest = user && (user.name === state.highestBidder);
 
-        function handleSpecialLogin() {
-            tempEmail = document.getElementById('spec_email').value;
-            const pass = document.getElementById('spec_pass').value;
-            if(!tempEmail || !pass) return showError("Fill all fields");
-            socket.emit('specialSignIn', { email: tempEmail, password: pass, type: authType });
-        }
-
-        function handleVerifyOTP() {
-            const otp = document.getElementById('otp_input').value;
-            socket.emit('verifyOTP', { email: tempEmail, otp });
-        }
-
-        function showError(msg) {
-            const err = document.getElementById('authError');
-            err.innerText = msg;
-            err.classList.remove('hidden');
-            setTimeout(() => err.classList.add('hidden'), 3000);
-        }
-
-        // --- AUTH SOCKET LISTENERS ---
-        socket.on('authStep', step => { if(step === 'otp') showAuthStep('otp'); });
-        socket.on('errorMsg', msg => showError(msg));
-        socket.on('loginSuccess', data => {
-            user = data;
-            localStorage.setItem('nexus_user', JSON.stringify(data));
-            startApp();
-        });
-
-        // --- EXISTING FUNCTIONS (RESTORED) ---
-        function logout() { localStorage.removeItem('nexus_user'); location.reload(); }
-
-        function startApp() {
-            if(!user) return;
-            document.getElementById('authOverlay').classList.add('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
-            document.getElementById('userName').innerText = user.name;
-            document.getElementById('userRole').innerText = user.role;
-            if (user.role === 'admin') {
-                document.getElementById('adminControls').classList.remove('hidden');
-                document.getElementById('adminPlayerForm').classList.remove('hidden');
-                document.getElementById('adminBonusPanel').classList.remove('hidden');
-            }
-        }
-
-        socket.on('initialData', (data) => {
-            currentPlayers = data.players;
-            currentTeams = data.teams;
-            renderPlayers(data.players);
-            renderTeams(data.teams);
-            renderAuction(data.state);
-            if(data.chats) { document.getElementById('chatBox').innerHTML = ''; data.chats.forEach(addChatMessage); }
-        });
-
-        socket.on('updatePlayers', (p) => { currentPlayers = p; renderPlayers(p); });
-        socket.on('updateTeams', (t) => { currentTeams = t; renderTeams(t); });
-        socket.on('updateAuction', renderAuction);
-        socket.on('newMessage', addChatMessage);
-
-        function renderPlayers(players) {
-            document.getElementById('playerList').innerHTML = players.map(p => `
-                <tr class="hover:bg-white/5 border-b border-white/5 group transition-colors">
-                    <td class="p-6 font-bold text-white group-hover:text-cyan-400 transition">${p.name}</td>
-                    <td class="p-6 text-gray-400 font-bold">${p.strength}</td>
-                    <td class="p-6"><span class="px-3 py-1 rounded-lg text-[10px] font-black border border-white/10 bg-gray-800 tracking-widest uppercase">${p.cardType}</span></td>
-                    <td class="p-6 font-black uppercase text-[10px] tracking-widest ${p.status === 'Available' ? 'text-cyan-400' : 'text-red-500'}">${p.status}</td>
-                    <td class="p-6 text-white font-black">${p.baseValue} L</td>
-                    <td class="p-6"><div class="flex items-center justify-center gap-4">
-                        ${user && user.role === 'admin' && p.status === 'Available' ? `<button onclick="socket.emit('startAuction', { playerId: '${p._id}', baseValue: ${p.baseValue} })" class="bg-cyan-400 text-black text-[10px] px-4 py-1.5 rounded-lg font-black uppercase">START</button>` : `<span class="text-gray-600 text-[10px] font-bold uppercase italic">${p.soldTo || '-'}</span>`}
-                        ${user && user.role === 'admin' ? `<button onclick="confirmDelete('${p._id}', '${p.name}')" class="text-gray-500 hover:text-red-500 transition"><i class="fa-solid fa-trash-can"></i></button>` : ''}
-                    </div></td>
-                </tr>
-            `).join('');
-        }
-
-        function renderTeams(teams) {
-            const list = document.getElementById('budgetList');
-            list.innerHTML = teams.sort((a,b)=>b.budget-a.budget).map(t => `
-                <div class="flex justify-between items-center p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-cyan-400/30 transition-all group">
-                    <span class="text-sm font-black uppercase tracking-widest text-gray-400 group-hover:text-white">${t.name}</span>
-                    <span class="text-cyan-400 font-black text-lg">${t.budget} L</span>
-                </div>
-            `).join('');
-            const select = document.getElementById('bonusTeamSelect');
-            if (select) select.innerHTML = teams.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
-        }
-
-        function renderAuction(state) {
-            const container = document.getElementById('auctionDisplay');
-            if (!container || !state || !state.activePlayerId) {
-                container.innerHTML = `<div class="text-center py-10 opacity-40"><i class="fa-solid fa-gavel text-7xl mb-6"></i><p class="font-black uppercase tracking-[0.4em] text-sm">Waiting for Entry</p></div>`;
-                return;
-            }
-            const p = state.activePlayerId;
-            const isHighest = user && (user.name === state.highestBidder);
+        // Update the main Auction Display (Premium Card View)
+        if(container) {
             container.innerHTML = `
                 <div class="w-full flex flex-col items-center animate-in zoom-in duration-500">
                     <div class="w-full max-w-2xl bg-white/5 h-1.5 rounded-full mb-12 overflow-hidden border border-white/5">
-                        <div class="h-full bg-cyan-400 shadow-[0_0_10px_#00e5ff]" style="width: ${(state.timeLeft/60)*100}%"></div>
+                        <div id="timerBar" class="h-full bg-cyan-400 shadow-[0_0_10px_#00e5ff]" style="width: ${(state.timeLeft/60)*100}%"></div>
                     </div>
                     <div class="flex flex-col lg:flex-row items-center gap-12 w-full justify-center">
                         <div class="player-card-premium w-64 h-96 rounded-[2rem] p-6 shadow-2xl flex flex-col items-center justify-center animate-float overflow-hidden">
@@ -339,7 +390,7 @@
                             <p class="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em]">Current Bid</p>
                             <p class="text-7xl font-black text-white neon-text-glow">${state.currentBid}<span class="text-2xl text-cyan-400 ml-2">L</span></p>
                             <p class="text-2xl font-bold text-yellow-400">${state.highestBidder || 'OPENING'}</p>
-                            <span class="bg-red-500/10 text-red-500 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Ends in ${state.timeLeft}s</span>
+                            <span id="timerVal" class="bg-red-500/10 text-red-500 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Ends in ${state.timeLeft}s</span>
                         </div>
                     </div>
                     ${user && user.role === 'captain' ? `
@@ -351,33 +402,80 @@
                     ` : ''}
                 </div>`;
         }
+    }
 
-        function bid(inc) { socket.emit('placeBid', { teamName: user.name, increment: inc }); }
-        function sendBonus() { socket.emit('addBonus', { teamName: document.getElementById('bonusTeamSelect').value, amount: Number(document.getElementById('bonusAmount').value) }); }
-        function confirmDelete(id, name) { if(confirm(`Delete ${name}?`)) socket.emit('deletePlayer', id); }
-        function addPlayer() {
-            const data = { name: document.getElementById('pName').value, strength: Number(document.getElementById('pStrength').value), cardType: document.getElementById('pType').value, baseValue: Number(document.getElementById('pBase').value) };
-            socket.emit('addPlayer', data);
-        }
-        function sendChat() { if(document.getElementById('chatInput').value && user) { socket.emit('sendMessage', { sender: user.name, role: user.role, text: document.getElementById('chatInput').value }); document.getElementById('chatInput').value = ''; } }
-        function handleChatKey(e) { if(e.key === 'Enter') sendChat(); }
-        function addChatMessage(data) {
-            const box = document.getElementById('chatBox');
-            const div = document.createElement('div');
-            const isMe = user && data.sender === user.name;
-            div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
-            div.innerHTML = `<span class="text-[9px] font-black uppercase text-cyan-400 mb-1 px-2">${data.sender}</span><div class="max-w-[85%] p-4 rounded-3xl text-sm ${isMe ? 'bg-cyan-600/20 text-cyan-100 rounded-tr-none' : 'bg-white/5 text-gray-300 rounded-tl-none'}">${data.text}</div>`;
-            box.appendChild(div); box.scrollTop = box.scrollHeight;
-        }
-        function generatePDF() {
-            const { jsPDF } = window.jspdf; const doc = new jsPDF();
-            doc.text("NEXUS LEGENDS REPORT", 14, 20);
-            const soldData = currentPlayers.filter(p => p.status === 'Sold').map(p => [p.name, p.strength, p.cardType, p.soldTo]);
-            doc.autoTable({ startY: 30, head: [['Player', 'OVR', 'Tier', 'Sold To']], body: soldData });
-            doc.save('Nexus_Legends_Auction.pdf');
-        }
+    function bid(inc) { 
+        if(!user || user.role !== 'captain') return;
+        socket.emit('placeBid', { teamName: user.name, increment: inc }); 
+    }
+    
+    function sendBonus() { 
+        if(user.role !== 'admin') return;
+        const amt = Number(document.getElementById('bonusAmount').value);
+        const team = document.getElementById('bonusTeamSelect').value;
+        if(!amt || !team) return;
+        socket.emit('addBonus', { teamName: team, amount: amt }); 
+        document.getElementById('bonusAmount').value = ''; 
+    }
 
-        if(user) startApp();
-    </script>
+    function confirmDelete(id, name) { 
+        if(user.role === 'admin' && confirm(`Delete ${name}?`)) socket.emit('deletePlayer', id); 
+    }
+
+    function addPlayer() {
+        if(user.role !== 'admin') return;
+        const data = { 
+            name: document.getElementById('pName').value, 
+            strength: Number(document.getElementById('pStrength').value || document.getElementById('pStr').value), 
+            cardType: document.getElementById('pType').value, 
+            baseValue: Number(document.getElementById('pBase').value) 
+        };
+        if(!data.name || isNaN(data.strength)) return alert("Fill all player details");
+        socket.emit('addPlayer', data);
+        // Clear fields
+        ['pName', 'pStrength', 'pStr', 'pBase'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.value = '';
+        });
+    }
+
+    function sendChat() { 
+        const input = document.getElementById('chatInput');
+        if(input.value.trim() && user && user.role !== 'guest') { 
+            socket.emit('sendMessage', { sender: user.name, role: user.role, text: input.value }); 
+            input.value = ''; 
+        } 
+    }
+
+    function handleChatKey(e) { if(e.key === 'Enter') sendChat(); }
+
+    function addChatMessage(data) {
+        const box = document.getElementById('chatBox');
+        if(!box) return;
+        const isMe = user && data.sender === user.name;
+        const div = document.createElement('div');
+        div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
+        div.innerHTML = `<span class="text-[9px] font-black uppercase text-cyan-400 mb-1 px-2">${data.sender}</span><div class="max-w-[85%] p-4 rounded-3xl text-sm ${isMe ? 'bg-cyan-600/20 text-cyan-100 rounded-tr-none' : 'bg-white/5 text-gray-300 rounded-tl-none'}">${data.text}</div>`;
+        box.appendChild(div); box.scrollTop = box.scrollHeight;
+    }
+
+    function generatePDF() {
+        const { jsPDF } = window.jspdf; const doc = new jsPDF();
+        doc.text("NEXUS LEGENDS REPORT", 14, 20);
+        const soldData = currentPlayers.filter(p => p.status === 'Sold').map(p => [p.name, p.strength, p.cardType, p.soldTo]);
+        doc.autoTable({ startY: 30, head: [['Player', 'OVR', 'Tier', 'Sold Status']], body: soldData });
+        doc.save('Nexus_Legends_Auction.pdf');
+    }
+
+    // Auto-check for existing user
+    if(user) {
+        console.log("Found existing session for:", user.name);
+        startApp();
+    } else {
+        showAuthStep('choice');
+    }
+        </script>
+
+        
 </body>
 </html>
