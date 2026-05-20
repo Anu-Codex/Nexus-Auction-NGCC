@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1024">
+    <title>Mystic Legends | Elite FC Mobile Auction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;700&display=swap');
+        
+        :root {
+            --neon: #10b981;
+            --neon-glow: rgba(16, 185, 129, 0.4);
+            --premium-gold: #fbbf24;
+        }
+
+        body { 
+            font-family: 'Rajdhani', sans-serif; 
+            background: radial-gradient(circle at top right, #064e3b, #0a0f16 40%);
+            background-color: #0a0f16;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+
+        .premium-glass {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+        }
+
+        .neon-text-glow {
+            text-shadow: 0 0 10px var(--neon-glow);
+        }
+
+        .neon-border-glow {
+            border: 1px solid var(--neon);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.15), inset 0 0 10px rgba(16, 185, 129, 0.05);
+        }
+
+        .player-card-premium {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(0,0,0,0.8) 50%);
+            border: 2px solid var(--premium-gold);
+            position: relative;
+        }
+
+        .animate-float {
+            animation: float 4s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .btn-premium {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-premium:hover {
+            transform: translateY(-2px) scale(1.02);
+            filter: brightness(1.2);
+        }
+
+        .btn-premium:active { transform: scale(0.98); }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 10px; }
+
+        input, select { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- LOGIN MODAL -->
+    <div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0f16]/95">
+        <div class="premium-glass p-10 rounded-[2.5rem] w-full max-w-md border border-emerald-500/20 text-center animate-in fade-in zoom-in duration-500">
+            <div class="mb-8">
+                <div class="w-20 h-20 bg-neon/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-neon/30">
+                    <i class="fa-solid fa-bolt-lightning text-3xl text-neon"></i>
+                </div>
+                <h1 class="text-4xl font-bold tracking-tighter uppercase text-white">Mystic <span class="text-neon">Legends</span></h1>
+                <p class="text-gray-400 text-sm font-medium tracking-widest mt-1">ELITE AUCTION PORTAL</p>
+            </div>
+            <div class="space-y-4">
+                <input type="email" id="email" placeholder="Captain Email" class="w-full bg-gray-900/50 border border-white/10 p-4 rounded-2xl outline-none focus:border-neon transition text-white">
+                <input type="password" id="password" placeholder="Access Password" class="w-full bg-gray-900/50 border border-white/10 p-4 rounded-2xl outline-none focus:border-neon transition text-white">
+                <button onclick="attemptLogin()" class="w-full bg-neon text-black font-black py-4 rounded-2xl btn-premium text-lg uppercase tracking-wider">Authorize Access</button>
+                <button onclick="guestAccess()" class="w-full text-gray-500 hover:text-gray-300 transition text-sm font-bold uppercase tracking-widest">Spectate Auction</button>
+            </div>
+            <p id="loginError" class="text-red-400 text-sm mt-6 hidden font-bold">Invalid credentials. Try again.</p>
+        </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="hidden">
+        <nav class="premium-glass sticky top-0 z-50 px-8 py-5 flex justify-between items-center border-b border-white/5">
+            <div class="flex items-center gap-3">
+                <div class="bg-neon/10 p-2 rounded-lg border border-neon/20">
+                    <i class="fa-solid fa-crown text-neon text-xl"></i>
+                </div>
+                <span class="font-bold text-2xl tracking-tighter uppercase text-white">Mystic <span class="text-neon">Legends</span></span>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="text-right hidden md:block">
+                    <p id="userName" class="text-white font-bold leading-none mb-1"></p>
+                    <p id="userRole" class="text-[10px] text-neon uppercase tracking-[0.2em] font-black"></p>
+                </div>
+                <button onclick="logout()" class="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white px-5 py-2 rounded-xl text-xs font-black transition-all border border-red-500/20">LOGOUT</button>
+            </div>
+        </nav>
+
+        <main class="max-w-[1400px] mx-auto p-6 lg:p-10">
+            <!-- Header Title -->
+            <div class="flex flex-col items-center mb-12">
+                <span class="text-neon font-black tracking-[0.5em] text-xs uppercase mb-2">Live Tournament Season 2026</span>
+                <h2 class="text-6xl font-black uppercase italic tracking-tighter text-white">Elite Auction <span class="text-neon">Carnival</span></h2>
+                <div class="h-1.5 w-32 bg-neon mt-4 rounded-full shadow-[0_0_15px_#10b981]"></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <!-- Left: Live Auction & Roster -->
+                <div class="lg:col-span-8 space-y-8">
+                    
+                    <!-- LIVE SESSION CARD -->
+                    <div class="premium-glass rounded-[2.5rem] p-8 relative overflow-hidden min-h-[450px] border border-white/5 flex flex-col items-center justify-center">
+                        <div class="absolute top-6 left-8 flex items-center gap-3">
+                            <span class="h-2 w-2 bg-red-500 rounded-full pulse"></span>
+                            <span class="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Live Auction Block</span>
+                        </div>
+                        
+                        <div id="auctionDisplay" class="w-full">
+                            <!-- Injected by JS -->
+                            <div class="text-center py-20">
+                                <i class="fa-solid fa-circle-notch fa-spin text-4xl text-neon/20 mb-4"></i>
+                                <p class="text-gray-500 uppercase tracking-widest font-bold">Synchronizing with server...</p>
+                            </div>
+                        </div>
+
+                        <!-- Admin Tools -->
+                        <div id="adminControls" class="hidden mt-10 pt-8 border-t border-white/5 w-full flex justify-center gap-6">
+                            <button onclick="socket.emit('sellPlayer')" class="bg-blue-600 hover:bg-blue-500 text-white px-10 py-3 rounded-2xl font-black btn-premium shadow-xl">SELL PLAYER</button>
+                            <button onclick="socket.emit('cancelAuction')" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-10 py-3 rounded-2xl font-black btn-premium">CANCEL</button>
+                        </div>
+                    </div>
+
+                    <!-- ROSTER TABLE -->
+                    <div class="premium-glass rounded-[2rem] overflow-hidden border border-white/5">
+                        <div class="bg-white/5 p-6 border-b border-white/5 flex justify-between items-center">
+                            <h3 class="font-bold flex items-center gap-3 uppercase tracking-wider">
+                                <i class="fa-solid fa-users-viewfinder text-neon"></i> Available Roster
+                            </h3>
+                            <span class="text-[10px] bg-neon/10 text-neon px-3 py-1 rounded-full font-black uppercase">Season 26 Data</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-black/40 text-[10px] uppercase tracking-[0.2em] text-gray-500">
+                                    <tr>
+                                        <th class="p-6">Player Identity</th>
+                                        <th class="p-6">OVR</th>
+                                        <th class="p-6">Tier</th>
+                                        <th class="p-6">Status</th>
+                                        <th class="p-6">Base Value</th>
+                                        <th class="p-6 text-center">Operation</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="playerList" class="text-sm divide-y divide-white/5"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ADMIN: ADD PLAYER -->
+                    <div id="adminPlayerForm" class="hidden premium-glass rounded-[2rem] p-8 border border-neon/20">
+                        <h3 class="text-xl font-bold mb-6 flex items-center gap-3 text-white"><i class="fa-solid fa-plus-circle text-neon"></i> Register New Legend</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase text-gray-500 ml-2 font-bold">Full Name</label>
+                                <input id="pName" type="text" placeholder="e.g. Messi" class="w-full bg-gray-900/50 border border-white/10 p-3 rounded-xl outline-none focus:border-neon text-white">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase text-gray-500 ml-2 font-bold">OVR Rating</label>
+                                <input id="pStrength" type="number" placeholder="103" class="w-full bg-gray-900/50 border border-white/10 p-3 rounded-xl outline-none focus:border-neon text-white">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase text-gray-500 ml-2 font-bold">Card Tier</label>
+                                <select id="pType" class="w-full bg-gray-900/50 border border-white/10 p-3 rounded-xl outline-none focus:border-neon text-white">
+                                    <option>Prime Icon</option><option>Event Icon</option><option>TOTY</option><option>TOTS</option><option>Standard</option>
+                                </select>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase text-gray-500 ml-2 font-bold">Base (L)</label>
+                                <input id="pBase" type="number" placeholder="50" class="w-full bg-gray-900/50 border border-white/10 p-3 rounded-xl outline-none focus:border-neon text-white">
+                            </div>
+                        </div>
+                        <button onclick="addPlayer()" class="mt-6 w-full bg-emerald-600 text-white font-black py-4 rounded-2xl btn-premium shadow-lg uppercase tracking-widest">Deploy Player to Roster</button>
+                    </div>
+                </div>
+
+                <!-- Right: Purses & Chat -->
+                <div class="lg:col-span-4 space-y-8">
+                    
+                    <!-- PURSES -->
+                    <div class="premium-glass rounded-[2rem] border border-white/5 overflow-hidden">
+                        <div class="bg-gradient-to-r from-emerald-900/40 to-transparent p-6 border-b border-white/5 flex justify-between items-center">
+                            <h3 class="font-bold uppercase tracking-widest">Mystic Purses</h3>
+                            <i class="fa-solid fa-vault text-premium-gold"></i>
+                        </div>
+                        <div id="budgetList" class="p-3 space-y-2 max-h-[400px] overflow-y-auto"></div>
+                        
+                        <!-- Admin Purse Management -->
+                        <div id="adminBonusPanel" class="hidden p-6 bg-black/40 border-t border-white/5 space-y-4">
+                            <p class="text-[10px] uppercase text-gray-500 font-black tracking-widest">Purse Injection</p>
+                            <div class="space-y-2">
+                                <select id="bonusTeamSelect" class="w-full bg-gray-900 border border-white/10 p-3 rounded-xl text-xs text-white"></select>
+                                <div class="flex gap-2">
+                                    <input id="bonusAmount" type="number" placeholder="Amt" class="w-full bg-gray-900 border border-white/10 p-3 rounded-xl text-xs text-white">
+                                    <button onclick="sendBonus()" class="bg-neon text-black font-black px-6 rounded-xl text-[10px] uppercase">Inject</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PDF ACTION -->
+                    <button onclick="generatePDF()" class="w-full bg-red-700/20 hover:bg-red-700 text-red-500 hover:text-white border border-red-500/20 p-5 rounded-[1.5rem] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-file-pdf"></i> Generate Final Report
+                    </button>
+
+                    <!-- CHAT -->
+                    <div class="premium-glass rounded-[2rem] border border-white/5 h-[500px] flex flex-col overflow-hidden">
+                        <div class="p-6 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                            <span class="font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                                <i class="fa-solid fa-comments text-neon"></i> Communications
+                            </span>
+                            <span class="h-2 w-2 bg-neon rounded-full animate-pulse"></span>
+                        </div>
+                        <div id="chatBox" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
+                        <div class="p-4 bg-black/40 border-t border-white/5">
+                            <div class="flex gap-3 bg-gray-900/80 p-1.5 rounded-[1.5rem] border border-white/5 focus-within:border-neon transition">
+                                <input id="chatInput" type="text" placeholder="Broadcast message..." class="flex-1 bg-transparent p-3 outline-none text-sm text-white" onkeypress="handleChatKey(event)">
+                                <button onclick="sendChat()" class="bg-neon text-black w-12 h-12 rounded-[1.2rem] flex items-center justify-center btn-premium">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="mt-20 py-10 border-t border-white/5 text-center">
+            <p class="text-gray-600 text-xs font-bold tracking-[0.3em] uppercase">System Architect: Anubhav Sarkar &copy; 2026</p>
+        </footer>
+    </div>
+
+    <script>
+        const socket = io("https://ml-go.onrender.com/"); 
+        let currentPlayers = [];
+        let currentTeams = [];
+        let user = JSON.parse(localStorage.getItem('ml_user')) || null;
+
+        const ACCESS_MAP = {
+            "admin@mystic.com": { name: "ML Admin", role: "admin", pass: "admin123" },
+            "surjanshu@mystic.com": { name: "Virat FC", role: "captain", pass: "surjanshu123" },
+            "ahitagni@mystic.com": { name: "Neimesis eSports", role: "captain", pass: "ahitagni123" },
+            "ritam@mystic.com": { name: "Team ICONIC", role: "captain", pass: "ritam123" },
+            "anish@mystic.com": { name: "Bluster FC", role: "captain", pass: "anish123" },
+            "debatreya@mystic.com": { name: "Let it go na", role: "captain", pass: "debatreya123" },
+            "hitanshu@mystic.com": { name: "Skystrikers United", role: "captain", pass: "hitanshu123" },
+            "aritra@mystic.com": { name: "MI CHAMPSS", role: "captain", pass: "aritra123" },
+            "nil@mystic.com": { name: "ELITE MSN", role: "captain", pass: "nil123" },
+            "debojit@mystic.com": { name: "Visca", role: "captain", pass: "debojit123" },
+            "arghya@mystic.com": { name: "PREDETORS TRIO", role: "captain", pass: "arghya123" }
+        };
+
+        function attemptLogin() {
+            const email = document.getElementById('email').value.trim().toLowerCase();
+            const pass = document.getElementById('password').value.trim();
+            const profile = ACCESS_MAP[email];
+            if (profile && profile.pass === pass) {
+                user = profile;
+                localStorage.setItem('ml_user', JSON.stringify(user));
+                startApp();
+            } else { 
+                const err = document.getElementById('loginError');
+                err.classList.remove('hidden');
+                setTimeout(() => err.classList.add('hidden'), 3000);
+            }
+        }
+
+        function guestAccess() { user = { name: "Guest Viewer", role: "guest" }; startApp(); }
+        function logout() { localStorage.removeItem('ml_user'); location.reload(); }
+
+        function startApp() {
+            if(!user) return;
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('userName').innerText = user.name;
+            document.getElementById('userRole').innerText = user.role;
+            if (user.role === 'admin') {
+                document.getElementById('adminControls').classList.remove('hidden');
+                document.getElementById('adminPlayerForm').classList.remove('hidden');
+                document.getElementById('adminBonusPanel').classList.remove('hidden');
+            }
+        }
+
+        socket.on('initialData', (data) => {
+            currentPlayers = data.players;
+            currentTeams = data.teams;
+            renderPlayers(data.players);
+            renderTeams(data.teams);
+            renderAuction(data.state);
+            if(data.chats) { 
+                const box = document.getElementById('chatBox');
+                box.innerHTML = ''; 
+                data.chats.forEach(addChatMessage); 
+            }
+        });
+
+        socket.on('updatePlayers', (p) => { currentPlayers = p; renderPlayers(p); });
+        socket.on('updateTeams', (t) => { currentTeams = t; renderTeams(t); });
+        socket.on('updateAuction', renderAuction);
+        socket.on('newMessage', addChatMessage);
+
+        function renderPlayers(players) {
+            document.getElementById('playerList').innerHTML = players.map(p => `
+                <tr class="hover:bg-white/5 border-b border-white/5 group transition-colors">
+                    <td class="p-6 font-bold text-white group-hover:text-neon transition">${p.name}</td>
+                    <td class="p-6 text-gray-400 font-bold">${p.strength}</td>
+                    <td class="p-6">
+                        <span class="px-3 py-1 rounded-lg text-[10px] font-black border border-white/10 bg-gray-800 tracking-widest uppercase">${p.cardType}</span>
+                    </td>
+                    <td class="p-6 font-black uppercase text-[10px] tracking-widest ${p.status === 'Available' ? 'text-neon' : 'text-red-500'}">
+                        ${p.status}
+                    </td>
+                    <td class="p-6 text-white font-black">${p.baseValue} L</td>
+                    <td class="p-6">
+                        <div class="flex items-center justify-center gap-4">
+                            ${user && user.role === 'admin' && p.status === 'Available' ? 
+                              `<button onclick="socket.emit('startAuction', { playerId: '${p._id}', baseValue: ${p.baseValue} })" class="bg-neon text-black text-[10px] px-4 py-1.5 rounded-lg font-black uppercase hover:scale-105 transition shadow-lg">START</button>` : 
+                              `<span class="text-gray-600 text-[10px] font-bold uppercase italic">${p.soldTo || '-'}</span>`}
+                            ${user && user.role === 'admin' ? 
+                              `<button onclick="confirmDelete('${p._id}', '${p.name}')" class="text-gray-600 hover:text-red-500 transition"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderTeams(teams) {
+            const list = document.getElementById('budgetList');
+            list.innerHTML = teams.sort((a,b)=>b.budget-a.budget).map(t => `
+                <div class="flex justify-between items-center p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-neon/30 transition-all group">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-black uppercase tracking-widest text-gray-400 group-hover:text-white transition">${t.name}</span>
+                        <span class="text-[9px] text-gray-600 font-bold">FRANCHISE CAPACITY</span>
+                    </div>
+                    <span class="text-neon font-black text-lg group-hover:scale-110 transition-transform">${t.budget} L</span>
+                </div>
+            `).join('');
+            
+            const select = document.getElementById('bonusTeamSelect');
+            if (select) select.innerHTML = teams.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+        }
+
+        function renderAuction(state) {
+            const container = document.getElementById('auctionDisplay');
+            if (!container || !state || !state.activePlayerId) {
+                container.innerHTML = `
+                    <div class="text-center py-10 opacity-40">
+                        <i class="fa-solid fa-gavel text-7xl mb-6"></i>
+                        <p class="font-black uppercase tracking-[0.4em] text-sm">Waiting for Next Entry</p>
+                    </div>`;
+                return;
+            }
+
+            const p = state.activePlayerId;
+            const isHighest = user && (user.name === state.highestBidder);
+
+            container.innerHTML = `
+                <div class="w-full flex flex-col items-center animate-in zoom-in duration-500">
+                    <!-- TIMER BAR -->
+                    <div class="w-full max-w-2xl bg-white/5 h-1.5 rounded-full mb-12 overflow-hidden border border-white/5">
+                        <div class="h-full bg-neon transition-all duration-1000 shadow-[0_0_10px_#10b981]" style="width: ${(state.timeLeft/30)*100}%"></div>
+                    </div>
+
+                    <div class="flex flex-col lg:flex-row items-center gap-12 w-full justify-center">
+                        <!-- THE PLAYER CARD -->
+                        <div class="player-card-premium w-64 h-96 rounded-[2rem] p-6 shadow-2xl flex flex-col items-center justify-center animate-float overflow-hidden">
+                            <div class="absolute top-0 right-0 p-4 opacity-20"><i class="fa-solid fa-shield-halved text-6xl"></i></div>
+                            <span class="text-4xl font-black text-premium-gold mb-1">${p.strength}</span>
+                            <span class="text-[10px] font-black uppercase text-premium-gold/60 tracking-widest mb-6">OVR Rating</span>
+                            <h2 class="text-3xl font-black text-center text-white leading-none uppercase italic mb-8">${p.name}</h2>
+                            <div class="mt-auto bg-premium-gold text-black px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-tighter">
+                                ${p.cardType}
+                            </div>
+                        </div>
+
+                        <!-- BIDDING INFO -->
+                        <div class="flex flex-col items-center lg:items-start text-center lg:text-left gap-6">
+                            <div class="space-y-1">
+                                <p class="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em]">Current Evaluation</p>
+                                <p class="text-7xl font-black text-white neon-text-glow">${state.currentBid}<span class="text-2xl text-neon ml-2">LAKH</span></p>
+                            </div>
+                            <div class="space-y-1">
+                                <p class="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em]">Current Lead</p>
+                                <p class="text-2xl font-bold text-premium-gold">${state.highestBidder || 'OPENING BID'}</p>
+                            </div>
+                            <div class="flex items-center gap-4 mt-2">
+                                <span class="bg-red-500/10 text-red-500 text-[10px] font-black px-3 py-1 rounded-full border border-red-500/20 uppercase tracking-widest">
+                                    Ends in ${state.timeLeft}s
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CAPTAIN CONTROLS -->
+                    ${user && user.role === 'captain' ? `
+                        <div class="grid grid-cols-3 gap-6 w-full max-w-xl mt-12">
+                            <button onclick="bid(1)" class="bg-gray-800 hover:bg-emerald-600 text-white p-5 rounded-3xl font-black btn-premium border border-white/5 shadow-2xl flex flex-col items-center ${isHighest ? 'opacity-30' : ''}" ${isHighest ? 'disabled' : ''}>
+                                <span class="text-xs uppercase opacity-60 mb-1">Standard</span>
+                                <span class="text-xl">+1 LAKH</span>
+                            </button>
+                            <button onclick="bid(5)" class="bg-neon text-black p-5 rounded-3xl font-black btn-premium shadow-[0_0_20px_rgba(16,185,129,0.3)] flex flex-col items-center ${isHighest ? 'opacity-30' : ''}" ${isHighest ? 'disabled' : ''}>
+                                <span class="text-xs uppercase opacity-60 mb-1">Strategic</span>
+                                <span class="text-xl">+5 LAKH</span>
+                            </button>
+                            <button onclick="bid(10)" class="bg-neon text-black p-5 rounded-3xl font-black btn-premium shadow-[0_0_20px_rgba(16,185,129,0.3)] flex flex-col items-center ${isHighest ? 'opacity-30' : ''}" ${isHighest ? 'disabled' : ''}>
+                                <span class="text-xs uppercase opacity-60 mb-1">Dominance</span>
+                                <span class="text-xl">+10 LAKH</span>
+                            </button>
+                        </div>
+                        ${isHighest ? '<p class="text-neon text-[10px] font-black uppercase tracking-widest mt-6 animate-pulse">You currently hold the highest bid</p>' : ''}
+                    ` : ''}
+                </div>`;
+        }
+
+        // --- ACTIONS ---
+        function bid(inc) { socket.emit('placeBid', { teamName: user.name, increment: inc }); }
+        function sendBonus() { 
+            const amt = Number(document.getElementById('bonusAmount').value);
+            if(!amt) return;
+            socket.emit('addBonus', { teamName: document.getElementById('bonusTeamSelect').value, amount: amt }); 
+            document.getElementById('bonusAmount').value = ''; 
+        }
+        function confirmDelete(id, name) { if(confirm(`Confirm deletion of ${name}?`)) socket.emit('deletePlayer', id); }
+        function addPlayer() {
+            const data = { 
+                name: document.getElementById('pName').value, 
+                strength: Number(document.getElementById('pStrength').value), 
+                cardType: document.getElementById('pType').value, 
+                baseValue: Number(document.getElementById('pBase').value) 
+            };
+            if(!data.name || !data.strength) return alert("Complete all player details!");
+            socket.emit('addPlayer', data);
+            document.getElementById('pName').value = ''; 
+            document.getElementById('pStrength').value = ''; 
+            document.getElementById('pBase').value = '';
+        }
+
+        // --- CHAT ---
+        function sendChat() { 
+            const input = document.getElementById('chatInput');
+            if(input.value.trim() && user && user.role !== 'guest') { 
+                socket.emit('sendMessage', { sender: user.name, role: user.role, text: input.value }); 
+                input.value = ''; 
+            } 
+        }
+        function handleChatKey(e) { if(e.key === 'Enter') sendChat(); }
+        function addChatMessage(data) {
+            const box = document.getElementById('chatBox');
+            const isMe = user && data.sender === user.name;
+            const div = document.createElement('div');
+            div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
+            
+            div.innerHTML = `
+                <span class="text-[9px] font-black uppercase tracking-widest text-gray-500 mb-1 px-2">${data.sender}</span>
+                <div class="max-w-[85%] p-4 rounded-3xl text-sm ${
+                    isMe ? 'bg-emerald-600/20 text-emerald-100 rounded-tr-none border border-emerald-500/20' 
+                         : 'bg-white/5 text-gray-300 rounded-tl-none border border-white/5'
+                }">
+                    ${data.text}
+                </div>
+            `;
+            box.appendChild(div); 
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // --- PDF ---
+        function generatePDF() {
+            const { jsPDF } = window.jspdf; 
+            const doc = new jsPDF();
+            doc.setFillColor(10, 15, 22); doc.rect(0, 0, 210, 297, 'F');
+            doc.setFontSize(26); doc.setTextColor(16, 185, 129); doc.text("MYSTIC LEGENDS 2026", 14, 25);
+            doc.setFontSize(10); doc.setTextColor(100); doc.text("Official Tournament Auction Report", 14, 32);
+            
+            const soldData = currentPlayers.filter(p => p.status === 'Sold').map(p => {
+                const price = p.soldTo.includes('(') ? p.soldTo.split('(')[1].replace(')', '') : 'N/A';
+                const team = p.soldTo.split(' (')[0];
+                return [p.name, p.strength, p.cardType, price, team];
+            });
+            
+            doc.autoTable({ 
+                startY: 45, 
+                head: [['Player', 'OVR', 'Tier', 'Price', 'Franchise']], 
+                body: soldData,
+                theme: 'dark',
+                headStyles: { fillColor: [16, 185, 129], textColor: [0,0,0] },
+                alternateRowStyles: { fillColor: [20, 30, 45] }
+            });
+            
+            const budgetData = currentTeams.map(t => [t.name, t.budget + " LAKH"]);
+            doc.setTextColor(255); doc.setFontSize(14); doc.text("Final Franchise Balances", 14, doc.lastAutoTable.finalY + 20);
+            doc.autoTable({ 
+                startY: doc.lastAutoTable.finalY + 25, 
+                head: [['Franchise Name', 'Balance Remaining']], 
+                body: budgetData,
+                theme: 'grid',
+                headStyles: { fillColor: [31, 41, 55] }
+            });
+            doc.save('Mystic_Legends_Auction_Final.pdf');
+        }
+
+        if(user) startApp();
+    </script>
+</body>
+</html>
