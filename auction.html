@@ -166,6 +166,8 @@
                             <input id="pStrength" type="number" placeholder="OVR" class="w-full bg-gray-900 border border-white/10 p-3 rounded-xl text-white">
                             <select id="pType" class="w-full bg-gray-900 border border-white/10 p-3 rounded-xl text-white"><option>Epic</option><option>Showtime</option><option>Big Time</option><option>Standard</option></select>
                             <input id="pBase" type="number" placeholder="Base (L)" class="w-full bg-gray-900 border border-white/10 p-3 rounded-xl text-white">
+                            <input id="pDiv" type="number" placeholder="Div / Rank" class="w-full bg-gray-900 border border-white/10 p-3 rounded-xl text-white">
+                            <input id="pPhone" type="number" placeholder="Phone No" class="w-full bg-gray-900 border border-white/10 p-3 rounded-xl text-white">
                         </div>
                         <button onclick="addPlayer()" class="mt-6 w-full ef-gradient text-black font-black py-4 rounded-2xl btn-premium uppercase">Deploy to Roster</button>
                     </div>
@@ -335,6 +337,8 @@
             <tr class="hover:bg-white/5 border-b border-white/5 group transition-colors">
                 <td class="p-6 font-bold text-white group-hover:text-cyan-400 transition">${p.name}</td>
                 <td class="p-6 text-gray-400 font-bold">${p.strength}</td>
+                <td class="p-4 font-bold text-cyan-400">Div ${p.division || 'N/A'}</td> 
+                <td class="p-4 text-gray-500">${p.phone || 'N/A'}</td>
                 <td class="p-6"><span class="px-3 py-1 rounded-lg text-[10px] font-black border border-white/10 bg-gray-800 tracking-widest uppercase">${p.cardType}</span></td>
                 <td class="p-6 font-black uppercase text-[10px] tracking-widest ${p.status === 'Available' ? 'text-cyan-400' : 'text-red-500'}">${p.status}</td>
                 <td class="p-6 text-white font-black">${p.baseValue} L</td>
@@ -384,6 +388,7 @@
                         <div class="player-card-premium w-64 h-96 rounded-[2rem] p-6 shadow-2xl flex flex-col items-center justify-center animate-float overflow-hidden">
                             <span class="text-4xl font-black text-cyan-400 mb-1">${p.strength}</span>
                             <h2 class="text-3xl font-black text-center text-white leading-none uppercase italic mb-8">${p.name}</h2>
+                            <p class="text-cyan-400 text-xs font-bold mb-4">DIV ${p.division || 'N/A'} | RANKED</p>
                             <div class="mt-auto bg-cyan-400 text-black px-4 py-1.5 rounded-full font-black text-[10px] uppercase">${p.cardType}</div>
                         </div>
                         <div class="flex flex-col items-center lg:items-start text-center lg:text-left gap-6">
@@ -423,20 +428,20 @@
     }
 
     function addPlayer() {
-        if(user.role !== 'admin') return;
-        const data = { 
-            name: document.getElementById('pName').value, 
-            strength: Number(document.getElementById('pStrength').value || document.getElementById('pStr').value), 
-            cardType: document.getElementById('pType').value, 
-            baseValue: Number(document.getElementById('pBase').value) 
-        };
-        if(!data.name || isNaN(data.strength)) return alert("Fill all player details");
-        socket.emit('addPlayer', data);
-        // Clear fields
-        ['pName', 'pStrength', 'pStr', 'pBase'].forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.value = '';
-        });
+    const data = { 
+        name: document.getElementById('pName').value, 
+        strength: Number(document.getElementById('pStrength').value || document.getElementById('pStr').value), 
+        cardType: document.getElementById('pType').value, 
+        baseValue: Number(document.getElementById('pBase').value),
+        division: Number(document.getElementById('pDiv').value), // NEW
+        phone: Number(document.getElementById('pPhone').value)    // NEW
+    };
+    if(!data.name || isNaN(data.strength)) return alert("Fill all fields");
+    socket.emit('addPlayer', data);
+    // Clear inputs
+    ['pName', 'pStrength', 'pStr', 'pBase', 'pDiv', 'pPhone'].forEach(id => {
+        if(document.getElementById(id)) document.getElementById(id).value = '';
+    });
     }
 
     function sendChat() { 
@@ -462,8 +467,8 @@
     function generatePDF() {
         const { jsPDF } = window.jspdf; const doc = new jsPDF();
         doc.text("NEXUS LEGENDS REPORT", 14, 20);
-        const soldData = currentPlayers.filter(p => p.status === 'Sold').map(p => [p.name, p.strength, p.cardType, p.soldTo]);
-        doc.autoTable({ startY: 30, head: [['Player', 'Team Strength', 'Tier', 'Sold Status']], body: soldData });
+        const soldData = currentPlayers.filter(p => p.status === 'Sold').map(p => [p.name, p.strength, p.cardType, p.division || '-', p.phone || '-', p.soldTo]);
+        doc.autoTable({ startY: 30, head: [['Player', 'Team Strength', 'Tier', 'Div', 'Phone', 'Sold Status']], body: soldData });
         doc.save('Nexus_Legends_Auction.pdf');
     }
 
