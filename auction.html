@@ -48,6 +48,49 @@
 
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 10px; }
+        /* High Prominence Card Styling */
+.premium-card-neon {
+    background: linear-gradient(135deg, #001f3f 0%, #000814 100%);
+    border: 3px solid #00e5ff;
+    box-shadow: 0 0 30px rgba(0, 229, 255, 0.3), inset 0 0 20px rgba(0, 229, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Glowing Player Name */
+.player-name-prominent {
+    color: #eaff00; /* Neon Yellow */
+    text-shadow: 0 0 15px rgba(234, 255, 0, 0.6);
+    font-weight: 900;
+    letter-spacing: -1px;
+}
+
+/* Aggressive Red Timer */
+.timer-prominent {
+    background: rgba(255, 0, 0, 0.15);
+    color: #ff0000;
+    border: 2px solid #ff0000;
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+    font-weight: 800;
+    padding: 8px 20px;
+    border-radius: 99px;
+    font-size: 1.25rem;
+    animation: pulse-red 1s infinite;
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.5); }
+    50% { box-shadow: 0 0 25px rgba(255, 0, 0, 0.8); }
+    100% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.5); }
+}
+
+/* Prominent Bid Box */
+.bid-box-prominent {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    padding: 2rem;
+    border-radius: 2rem;
+}
     </style>
 </head>
 <body class="min-h-screen">
@@ -367,53 +410,90 @@
     function renderAuction(state) {
     const container = document.getElementById('auctionDisplay');
     if (!container || !state || !state.activePlayerId) {
-        container.innerHTML = `<div class="text-center py-10 opacity-40"><i class="fa-solid fa-gavel text-7xl mb-6"></i><p class="font-black uppercase tracking-[0.4em] text-sm">Waiting for Entry</p></div>`;
+        container.innerHTML = `
+            <div class="text-center py-20 opacity-30">
+                <i class="fa-solid fa-gavel text-8xl mb-6"></i>
+                <p class="text-2xl font-black uppercase tracking-[0.5em]">Waiting for Nomination</p>
+            </div>`;
         return;
     }
 
     const p = state.activePlayerId;
     const isHighest = user && (user.name === state.highestBidder);
-    const hasSkipped = user && state.skippedTeams.includes(user.name);
+    const hasSkipped = user && state.skippedTeams && state.skippedTeams.includes(user.name);
 
     container.innerHTML = `
-        <div class="w-full flex flex-col items-center animate-in zoom-in duration-500">
+        <div class="w-full flex flex-col items-center animate-in zoom-in duration-500 py-6">
             
-            <div class="w-full max-w-2xl bg-white/5 h-1.5 rounded-full mb-8 overflow-hidden border border-white/5">
-                <div class="h-full bg-cyan-400 shadow-[0_0_10px_#00e5ff]" style="width: ${(state.timeLeft/60)*100}%"></div>
+            <div class="w-full max-w-3xl bg-gray-900 h-3 rounded-full mb-12 overflow-hidden border border-white/10">
+                <div class="h-full bg-red-600 shadow-[0_0_20px_#ff0000] transition-all duration-1000" 
+                     style="width: ${(state.timeLeft/60)*100}%"></div>
             </div>
 
-            <div class="flex flex-col lg:flex-row items-center gap-12 w-full justify-center">
+            <div class="flex flex-col lg:flex-row items-center gap-16 w-full justify-center">
                 
-                <div class="player-card-premium w-64 h-96 rounded-[2rem] p-6 shadow-2xl flex flex-col items-center justify-center animate-float overflow-hidden">
-                    <span class="text-4xl font-black text-cyan-400 mb-1">${p.strength}</span>
-                    <h2 class="text-3xl font-black text-center text-white leading-none uppercase italic mb-2">${p.name}</h2>
-                    <p class="text-cyan-400 text-xs font-bold">DIV ${p.division || 'N/A'}</p>
-                    <div class="mt-auto bg-cyan-400 text-black px-4 py-1.5 rounded-full font-black text-[10px] uppercase">${p.cardType}</div>
+                
+                <div class="premium-card-neon w-72 h-[420px] rounded-[2.5rem] p-8 flex flex-col items-center justify-between animate-float">
+                    <div class="w-full text-center">
+                        <span class="text-5xl font-black text-cyan-400 block mb-2">${p.strength}</span>
+                        <span class="text-[10px] font-black uppercase text-cyan-400/50 tracking-widest">OVR RATING</span>
+                    </div>
+
+                    <div class="text-center">
+                        <h2 class="text-4xl player-name-prominent uppercase italic leading-none mb-2">${p.name}</h2>
+                        <p class="text-cyan-400 font-bold text-sm tracking-widest">DIVISION ${p.division || '1'}</p>
+                        <p class="text-gray-500 text-[10px] mt-1">ID: ${p.phone || 'HIDDEN'}</p>
+                    </div>
+
+                    <div class="bg-cyan-400 text-black px-6 py-2 rounded-full font-black text-xs uppercase tracking-tighter shadow-[0_0_15px_#00e5ff]">
+                        ${p.cardType}
+                    </div>
                 </div>
 
-            
-                <div class="flex flex-col items-center lg:items-start text-center lg:text-left gap-4">
-                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em]">Current Evaluation</p>
-                    <p class="text-7xl font-black text-white neon-text-glow">${state.currentBid}<span class="text-2xl text-cyan-400 ml-2">L</span></p>
-                    <p class="text-2xl font-bold text-yellow-400 uppercase">${state.highestBidder}</p>
-                    <span class="bg-red-500/10 text-red-500 text-[10px] font-black px-3 py-1 rounded-full uppercase">Ends in ${state.timeLeft}s</span>
+                
+                <div class="flex flex-col items-center lg:items-start gap-8">
+                    <div class="bid-box-prominent text-center lg:text-left min-w-[300px]">
+                        <p class="text-[11px] font-black text-gray-500 uppercase tracking-[0.5em] mb-2">Current evaluation</p>
+                        <p class="text-8xl font-black text-white leading-none">${state.currentBid}<span class="text-3xl text-cyan-400 ml-2">L</span></p>
+                        
+                        <div class="mt-6 flex items-center gap-3">
+                            <div class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                            <p class="text-2xl font-bold text-yellow-400 uppercase tracking-tighter">
+                                ${state.highestBidder || 'NO BIDS YET'}
+                            </p>
+                        </div>
+                    </div>
+
+                    
+                    <div class="timer-prominent flex items-center gap-3">
+                        <i class="fa-solid fa-clock"></i>
+                        <span>ENDS IN ${state.timeLeft}S</span>
+                    </div>
                 </div>
             </div>
 
+            
             ${user && user.role === 'captain' ? `
-                <div class="mt-10 flex flex-col items-center gap-4">
-                    <div class="grid grid-cols-3 gap-4 w-full max-w-lg">
-                        <button onclick="bid(1)" class="bg-gray-800 p-4 rounded-xl font-black border border-white/10 ${isHighest || hasSkipped ? 'opacity-20 grayscale cursor-not-allowed' : 'btn-premium'}" ${isHighest || hasSkipped ? 'disabled' : ''}>+1 L</button>
-                        <button onclick="bid(5)" class="bg-cyan-400 text-black p-4 rounded-xl font-black ${isHighest || hasSkipped ? 'opacity-20 grayscale cursor-not-allowed' : 'btn-premium'}" ${isHighest || hasSkipped ? 'disabled' : ''}>+5 L</button>
-                        <button onclick="bid(10)" class="bg-cyan-400 text-black p-4 rounded-xl font-black ${isHighest || hasSkipped ? 'opacity-20 grayscale cursor-not-allowed' : 'btn-premium'}" ${isHighest || hasSkipped ? 'disabled' : ''}>+10 L</button>
+                <div class="mt-12 w-full max-w-2xl">
+                    <div class="grid grid-cols-3 gap-6 mb-6">
+                        <button onclick="bid(1)" class="bg-gray-800 text-white p-6 rounded-3xl font-black border-2 border-white/5 text-xl hover:border-cyan-400 transition-all ${isHighest || hasSkipped ? 'opacity-20 grayscale' : 'shadow-xl active:scale-95'}" ${isHighest || hasSkipped ? 'disabled' : ''}>+1L</button>
+                        <button onclick="bid(5)" class="bg-cyan-400 text-black p-6 rounded-3xl font-black text-xl hover:brightness-110 transition-all ${isHighest || hasSkipped ? 'opacity-20 grayscale' : 'shadow-2xl active:scale-95'}" ${isHighest || hasSkipped ? 'disabled' : ''}>+5L</button>
+                        <button onclick="bid(10)" class="bg-cyan-400 text-black p-6 rounded-3xl font-black text-xl hover:brightness-110 transition-all ${isHighest || hasSkipped ? 'opacity-20 grayscale' : 'shadow-2xl active:scale-95'}" ${isHighest || hasSkipped ? 'disabled' : ''}>+10L</button>
                     </div>
                     
-                    <button onclick="skip()" class="w-full max-w-lg bg-red-500/10 text-red-500 border border-red-500/20 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-red-500 hover:text-white transition-all ${hasSkipped ? 'hidden' : ''}">
-                        Skip Round
+                    <button onclick="skip()" class="w-full bg-red-600/10 text-red-500 border-2 border-red-600/30 py-4 rounded-3xl font-black uppercase tracking-[0.3em] hover:bg-red-600 hover:text-white transition-all ${hasSkipped ? 'hidden' : ''}">
+                        SKIP ROUND
                     </button>
+                    
+                    ${hasSkipped ? '<div class="text-center py-4 bg-red-600/20 rounded-2xl border border-red-600/50 text-red-500 font-black uppercase tracking-widest">You have skipped this player</div>' : ''}
+                </div>
+            ` : ''}
 
-                    ${hasSkipped ? '<p class="text-red-500 text-xs font-black uppercase tracking-widest animate-pulse">You have skipped this player</p>' : ''}
-                    ${isHighest ? '<p class="text-cyan-400 text-xs font-black uppercase tracking-widest animate-pulse">Wait for another bid...</p>' : ''}
+            
+            ${user && user.role === 'admin' ? `
+                <div class="flex gap-6 mt-12">
+                    <button onclick="socket.emit('sellPlayer')" class="bg-blue-600 hover:bg-blue-500 text-white px-12 py-4 rounded-2xl font-black text-lg shadow-2xl transition-all">SELL PLAYER</button>
+                    <button onclick="socket.emit('cancelAuction')" class="bg-gray-800 hover:bg-gray-700 text-gray-400 px-12 py-4 rounded-2xl font-black text-lg transition-all">CANCEL</button>
                 </div>
             ` : ''}
         </div>`;
