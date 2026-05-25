@@ -410,9 +410,28 @@
         const p = state.activePlayerId;
         const isHighest = user && (user.name === state.highestBidder);
         const hasSkipped = user && state.skippedTeams && state.skippedTeams.includes(user.name);
+        let finalCallUI = "";
+    if (state.isFinalCall) {
+        finalCallUI = `
+            <div class="w-full mb-10 animate-pulse">
+                <div class="bg-yellow-400/10 border-2 border-yellow-400 p-8 rounded-[2rem] text-center shadow-[0_0_50px_rgba(234,255,0,0.2)]">
+                    <p class="text-yellow-400 font-black tracking-[0.5em] text-xs uppercase mb-2">Final Call for ${state.highestBidder}</p>
+                    <h1 class="text-5xl md:text-7xl font-black text-yellow-400 uppercase italic">
+                        ${state.finalCallText}
+                    </h1>
+                    </div>
+            </div>
+        `;
+    }
 
         container.innerHTML = `
             <div class="w-full flex flex-col items-center animate-in zoom-in duration-500 py-6">
+            ${finalCallUI}
+            ${!state.isFinalCall ? `
+            <div class="w-full max-w-3xl bg-gray-900 h-3 rounded-full mb-12 overflow-hidden border border-white/10">
+                <div class="h-full bg-red-600 shadow-[0_0_20px_#ff0000] transition-all duration-1000" style="width: ${(state.timeLeft/60)*100}%"></div>
+            </div>
+        ` : ''}
                 <div class="w-full max-w-3xl bg-gray-900 h-3 rounded-full mb-12 overflow-hidden border border-white/10">
                     <div class="h-full bg-red-600 shadow-[0_0_20px_#ff0000] transition-all duration-1000" style="width: ${(state.timeLeft/60)*100}%"></div>
                 </div>
@@ -448,7 +467,9 @@
                         </div>
                         <button onclick="skip()" class="w-full bg-red-600/10 text-red-500 border-2 border-red-600/30 py-4 rounded-3xl font-black uppercase tracking-[0.3em] ${hasSkipped ? 'hidden' : ''}">SKIP ROUND</button>
                     </div>` : ''}
-                ${user && user.role === 'admin' ? `<div class="flex gap-6 mt-12"><button onclick="socket.emit('sellPlayer')" class="bg-blue-600 text-white px-12 py-4 rounded-2xl font-black">SELL PLAYER</button><button onclick="socket.emit('cancelAuction')" class="bg-gray-800 text-gray-400 px-12 py-4 rounded-2xl font-black">CANCEL</button></div>` : ''}
+                ${user && user.role === 'admin' ? `<div class="flex gap-6 mt-12"><button onclick="socket.emit('startFinalCall')" class="bg-yellow-500 hover:bg-yellow-400 text-black px-10 py-4 rounded-2xl font-black text-lg shadow-[0_0_20px_rgba(234,255,0,0.4)] transition-all">
+            ⚡ INITIATE FINAL CALL
+        </button><button onclick="socket.emit('sellPlayer')" class="bg-blue-600 text-white px-12 py-4 rounded-2xl font-black">SELL PLAYER</button><button onclick="socket.emit('cancelAuction')" class="bg-gray-800 text-gray-400 px-12 py-4 rounded-2xl font-black">CANCEL</button></div>` : ''}
             </div>`;
     }
 
