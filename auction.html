@@ -314,10 +314,16 @@
         document.getElementById('userName').innerText = user.name;
         document.getElementById('userRole').innerText = user.role;
         
+        // Only show if role is exactly 'admin'
         if (user.role === 'admin') {
             document.getElementById('adminControls').classList.remove('hidden');
             document.getElementById('adminPlayerForm').classList.remove('hidden');
             document.getElementById('adminBonusPanel').classList.remove('hidden');
+        } else {
+            // Hide them for everyone else (Captains and Guests)
+            document.getElementById('adminControls').classList.add('hidden');
+            document.getElementById('adminPlayerForm').classList.add('hidden');
+            document.getElementById('adminBonusPanel').classList.add('hidden');
         }
     }
 
