@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Nexus Legends Guide Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0a0f16; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
+    </style>
+</head>
+<body>
+
+    <div class="text-center p-10 bg-gray-900 rounded-3xl border border-cyan-500/30 shadow-2xl">
+        <h1 class="text-2xl font-bold mb-4">Nexus Legends PDF Generator</h1>
+        <p class="text-gray-400 mb-8">Click the button below to generate your Official Guide & Rules PDF.</p>
+        <button onclick="generatePDF()" class="bg-cyan-500 hover:bg-cyan-400 text-black font-black py-4 px-10 rounded-2xl transition-all transform hover:scale-105">
+            DOWNLOAD OFFICIAL GUIDE PDF
+        </button>
+    </div>
+
+    <script>
+        async function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const margin = 15;
+            let cursorY = 20;
+
+            const addText = (text, size, style = 'normal', color = [0, 0, 0]) => {
+                doc.setFont("helvetica", style);
+                doc.setFontSize(size);
+                doc.setTextColor(color[0], color[1], color[2]);
+                const lines = doc.splitTextToSize(text, 180);
+                doc.text(lines, margin, cursorY);
+                cursorY += (lines.length * (size * 0.5)) + 5;
+            };
+
+            // HEADER
+            addText("Nexus Legends: eFootball Auction 2026", 22, 'bold', [0, 229, 255]);
+            addText("The Official User Manual & Guide", 16, 'bold', [100, 100, 100]);
+            doc.line(margin, cursorY, 195, cursorY);
+            cursorY += 10;
+
+            // SECTION 1
+            addText("1. Accessing the Portal", 14, 'bold', [0, 150, 200]);
+            addText("• Visitors: Click \"View as a Guest\" to watch the auction and chat in real-time. Guests cannot place bids.", 11);
+            addText("• Captains & Admins: 1. Click your respective Sign-In button. 2. Enter your registered official email and password. 3. Check your email inbox for a 6-Digit OTP (sent via Brevo). 4. Enter the code to unlock your specialized controls.", 11);
+
+            // SECTION 2
+            addText("2. The Auction Interface", 14, 'bold', [0, 150, 200]);
+            addText("• The Player Card (Left): Displays the player’s OVR (Strength), Division, and eFootball Identity.", 11);
+            addText("• The Squad Screenshot (Center): Admins will display the player’s actual team screenshot here to help you evaluate their squad value.", 11);
+            addText("• The Bid Box (Right): Shows the current highest evaluation in Lakhs (L) and the name of the leading Franchise.", 11);
+            addText("• Franchise Purses: Located on the right sidebar. It updates instantly after every \"SOLD\" player.", 11);
+
+            // SECTION 3
+            addText("3. How to Bid (Captains Only)", 14, 'bold', [0, 150, 200]);
+            addText("When a player is \"Live,\" you have three strategic bidding options:", 11);
+            addText("• +1 L: Smallest increment for steady bidding.", 11);
+            addText("• +5 L: Medium jump to show interest.", 11);
+            addText("• +10 L: Aggressive jump to scare off opponents.", 11);
+            addText("• The Wait Rule: Once you bid, your buttons will turn Grayscale (Gray). You cannot bid against yourself. You must wait for another Captain to bid before you can raise the price again.", 11);
+
+            // SECTION 4
+            addText("4. Strategic Features", 14, 'bold', [0, 150, 200]);
+            addText("• The Skip Button: If you are not interested in a player, click \"Skip Round.\" You will be locked out of that specific player’s auction to prevent accidental clicks, but you can return for the next player.", 11);
+            addText("• The 60s Timer: Every bid resets the clock to 60 seconds. This is the \"Cooling Period.\"", 11);
+            addText("• The Final Call (The Hammer): When bidding slows down, the Admin will initiate the Final Call. A yellow glowing box will appear with a 30-second countdown. Texts displayed: \"For the first time...\" -> \"Going once...\" -> \"Going twice...\" -> SOLD!", 11);
+
+            doc.addPage();
+            cursorY = 20;
+
+            // RULES HEADER
+            addText("Official Auction Rules & Regulations", 18, 'bold', [234, 255, 0]);
+            doc.line(margin, cursorY, 195, cursorY);
+            cursorY += 10;
+
+            addText("I. Purse & Budgeting", 14, 'bold');
+            addText("1. Opening Balance: Every Franchise starts with 2000L.", 11);
+            addText("2. Debt Policy: You cannot place a bid that exceeds your current budget. The system will automatically block \"Insufficient Funds\" bids.", 11);
+            addText("3. Bonus Injection: Admins reserve the right to inject \"Performance Bonuses\" into purses for community engagement.", 11);
+
+            addText("II. Bidding Etiquette", 14, 'bold');
+            addText("1. The Point of No Return: Once a bid is placed, it cannot be retracted. Captains are responsible for every click.", 11);
+            addText("2. The \"Skip\" Finality: Clicking \"Skip Round\" is permanent for that player. Use it only when you are 100% sure you don't want the player.", 11);
+            addText("3. Snipe Protection: Because every bid resets the timer to 60 seconds, \"Last-second sniping\" is impossible. Every team will always have 60 seconds to respond.", 11);
+
+            addText("III. The \"Sold\" Process", 14, 'bold');
+            addText("1. Automation: When the Final Call timer hits 0s (SOLD), the player is automatically transferred to the highest bidder's squad.", 11);
+            addText("2. The Admin Hammer: The Admin initiates the Final Call manually when they feel the market value has been met.", 11);
+            addText("3. Manual Overide: In case of a technical glitch or \"Misclick\" admitted immediately by the Captain, the Admin has the power to CANCEL an ongoing auction before the \"Sold\" status is reached.", 11);
+
+            addText("IV. Communication (Live Chat)", 14, 'bold');
+            addText("1. Professionalism: No toxicity, spamming, or abuse in the Live Chat.", 11);
+            addText("2. Announcements: Pay attention to SYSTEM messages in yellow; these are official automated notifications regarding sales and budget adjustments.", 11);
+
+            addText("V. Post-Auction", 14, 'bold');
+            addText("1. Data Integrity: All sales are recorded in the database.", 11);
+            addText("2. Reporting: At the end of the event, an Official Nexus Legends Report (PDF) will be generated, listing all transfers, Division ranks, and remaining team finances.", 11);
+
+            cursorY += 20;
+            addText("System Architect: Anubhav Sarkar", 10, 'italic', [100,100,100]);
+            addText("Powered by: Nexus Legends Community", 10, 'italic', [100,100,100]);
+
+            doc.save("Nexus_Legends_Auction_2026_Guide.pdf");
+        }
+    </script>
+</body>
+</html>
