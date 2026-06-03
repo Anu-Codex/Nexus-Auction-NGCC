@@ -221,6 +221,9 @@
                             <div class="flex gap-2">
                                 <input id="bonusAmount" type="number" placeholder="Amt" class="w-full bg-gray-900 border border-white/10 p-3 rounded-xl text-xs text-white">
                                 <button onclick="sendBonus()" class="bg-cyan-400 text-black font-black px-6 rounded-xl text-[10px] uppercase">Inject</button>
+                                <button onclick="forceDeduct()" class="flex-1 bg-red-600 text-white font-black py-3 rounded-xl text-[10px] uppercase hover:bg-red-500 transition-all shadow-lg shadow-red-900/20">
+                Force Deduct
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -474,6 +477,19 @@
         socket.emit('addBonus', { teamName: team, amount: amt }); 
         document.getElementById('bonusAmount').value = ''; 
     }
+        function forceDeduct() {
+    if (user.role !== 'admin') return;
+    
+    const team = document.getElementById('bonusTeamSelect').value;
+    const amt = Number(document.getElementById('bonusAmount').value);
+    
+    if (!amt || !team) return alert("Select team and enter amount!");
+
+    if (confirm(`FORCE DEDUCTION: Are you sure you want to remove ${amt}L from ${team}?`)) {
+        socket.emit('deductPurse', { teamName: team, amount: amt });
+        document.getElementById('bonusAmount').value = ''; 
+    }
+        }
 
     function confirmDelete(id, name) { if(user.role === 'admin' && confirm(`Delete ${name}?`)) socket.emit('deletePlayer', id); }
 
